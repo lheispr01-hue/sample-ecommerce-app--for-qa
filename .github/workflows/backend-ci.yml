@@ -43,6 +43,47 @@ jobs:
       - name: Test
         run: ./mvnw -B -ntp test
 
+      - name: Publish test report to job summary
+        if: always()
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import glob, os
+          import xml.etree.ElementTree as ET
+
+          files = sorted(glob.glob("target/surefire-reports/TEST-*.xml"))
+          print("## Backend test report\n")
+          if not files:
+              print("No test reports found (build may have failed before tests ran).")
+              raise SystemExit
+          rows, failures = [], []
+          tot = dict(tests=0, failures=0, errors=0, skipped=0)
+          for f in files:
+              s = ET.parse(f).getroot()
+              c = {k: int(s.get(k, 0)) for k in tot}
+              for k in tot:
+                  tot[k] += c[k]
+              name = s.get("name")
+              rows.append((name, c))
+              for tc in s.iter("testcase"):
+                  for kind in ("failure", "error"):
+                      e = tc.find(kind)
+                      if e is not None:
+                          msg = (e.get("message") or "").replace("\n", " ")[:300]
+                          failures.append((tc.get("classname"), tc.get("name"), msg))
+          passed = tot["tests"] - tot["failures"] - tot["errors"] - tot["skipped"]
+          icon = "❌" if tot["failures"] or tot["errors"] else "✅"
+          print(f"{icon} **{tot['tests']}** tests: **{passed}** passed, **{tot['failures']}** failed, **{tot['errors']}** errors, **{tot['skipped']}** skipped\n")
+          print("| Test class | Tests | Passed | Failed | Errors | Skipped |")
+          print("|---|---|---|---|---|---|")
+          for name, c in rows:
+              p = c["tests"] - c["failures"] - c["errors"] - c["skipped"]
+              print(f"| {name} | {c['tests']} | {p} | {c['failures']} | {c['errors']} | {c['skipped']} |")
+          if failures:
+              print("\n### Failures\n")
+              for cls, n, msg in failures:
+                  print(f"- `{cls}.{n}`: {msg}")
+          PY
+
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
