@@ -3,9 +3,9 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/ecommerce
-    username: ecommerce
-    password: ecommerce
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -19,7 +19,7 @@ spring:
 
 app:
   jwt:
-    secret: sample-ecommerce-demo-jwt-secret-key-must-be-long-enough-256bits
+    secret: ${JWT_SECRET}
     expiration-ms: 86400000
   demo-reset-enabled: true
 

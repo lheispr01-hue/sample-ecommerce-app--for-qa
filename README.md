@@ -9,6 +9,19 @@ Oakline React storefront, Spring Boot REST API, and PostgreSQL. Built to demonst
 - Maven 3.9+
 - Node.js 20+
 
+## Configuration (no secrets in code)
+
+```bash
+cp .env.example .env   # fill in values; .env is git-ignored
+set -a; . ./.env; set +a
+```
+
+Required env vars: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET` (32+ chars). The app fails to start if any are missing.
+
+## CI
+
+`.github/workflows/backend-ci.yml` builds, tests and packages the backend on push/PR to `main` (and manually). The executable jar is uploaded as the `backend-jar-<sha>` workflow artifact.
+
 ## Start the stack
 
 ```bash
@@ -17,7 +30,7 @@ docker compose up -d
 
 # 2. Backend (port 8080)
 cd backend
-mvn spring-boot:run
+./mvnw spring-boot:run
 
 # 3. Frontend (port 5173)
 cd frontend

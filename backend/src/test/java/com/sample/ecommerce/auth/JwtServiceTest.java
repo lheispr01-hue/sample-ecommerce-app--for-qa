@@ -9,7 +9,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class JwtServiceTest {
 
-    private static final String SECRET = "sample-ecommerce-demo-jwt-secret-key-must-be-long-enough-256bits";
+    // Random per run; never a real key
+    private static final String SECRET = java.util.UUID.randomUUID() + "-" + java.util.UUID.randomUUID();
     private static final long EXPIRATION_MS = 86_400_000L;
 
     private JwtService jwtService;
