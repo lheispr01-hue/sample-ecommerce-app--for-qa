@@ -46,6 +46,22 @@ jobs:
       - name: Type check and build
         run: npm run build
 
+      - name: SonarQube quality check
+        # Secrets are not exposed to fork PRs, so skip there.
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: SonarSource/sonarqube-scan-action@4d1dc0c91ee400dcf8a6dddf2f705ac36542e304 # v8.4.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+        with:
+          projectBaseDir: frontend
+          args: >
+            -Dsonar.projectKey=${{ vars.SONAR_FRONTEND_PROJECT_KEY }}
+            -Dsonar.sources=src
+            -Dsonar.exclusions=**/node_modules/**,**/dist/**
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.timeout=300
+
       - name: Build summary
         run: |
           {
