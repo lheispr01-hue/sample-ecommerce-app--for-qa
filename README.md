@@ -19,14 +19,31 @@ set -a; . ./.env; set +a
 Required env vars: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET` (32+ chars). The app fails to start if any are missing.
 
 ## CI
+`.github/workflows/ci-cd.yml` runs on push/PR to `main` (and manually):
 
-`.github/workflows/backend-ci.yml` builds, tests and packages the backend on push/PR to `main` (and manually). The executable jar is uploaded as the `backend-jar-<sha>` workflow artifact.
+1. `backend` / `frontend`: build, test/lint, SonarQube quality gate, artifacts.
+2. `publish` (push/manual only): Docker images pushed to GHCR (`oakline-backend`, `oakline-frontend`, tagged with the commit SHA and `latest`).
+3. `deploy`: pulls the images on the VM over SSH and runs postgres, backend (port 8080) and frontend (port 80) containers on the `ecommerce-net` network.
+4. `e2e-tests`: runs the Playwright suite in `test-pw/` against `http://<VM_HOST>`; the report is uploaded as an artifact.
 
-## Start the stack
+Required secrets: `SONAR_TOKEN`, `VM_SSH_PRIVATE_KEY`, `DB_PASSWORD`, `JWT_SECRET` (optional `DEMO_PASSWORD`).
+Required variables: `SONAR_HOST_URL`, `SONAR_PROJECT_KEY`, `SONAR_FRONTEND_PROJECT_KEY` (optional `VM_HOST`, default `34.200.249.158`; `VM_USER`, default `ec2-user`).
+
+## Deploy with Docker Compose (frontend + backend + database)
 
 ```bash
-# 1. Database
-docker compose up -d
+cp .env.example .env   # set DB_PASSWORD and JWT_SECRET (DB_URL is set by compose)
+docker compose up -d --build
+curl http://localhost/api/health
+```
+
+The frontend (nginx, port `FRONTEND_PORT`, default 80) proxies `/api` to the backend; PostgreSQL is only reachable on the internal network.
+
+## Start the stack (local development)
+
+```bash
+# 1. Database (add a `ports: ["5432:5432"]` override locally, since compose no longer publishes it)
+docker compose up -d postgres
 
 # 2. Backend (port 8080)
 cd backend
