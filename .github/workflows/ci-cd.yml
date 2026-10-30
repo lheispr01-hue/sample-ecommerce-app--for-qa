@@ -377,6 +377,87 @@ jobs:
       - name: Run all test cases
         run: npm test
 
+      - name: Publish E2E summary
+        if: always()
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import glob, json, os
+
+          print("## E2E test report\n")
+          if not os.path.exists("test-results/results.json"):
+              print("No results.json found (tests may not have started).")
+              raise SystemExit
+          data = json.load(open("test-results/results.json"))
+          rows, failures = [], []
+          totals = dict(passed=0, failed=0, flaky=0, skipped=0)
+          projects = {}
+
+          def walk(suite):
+              for spec in suite.get("specs", []):
+                  for t in spec.get("tests", []):
+                      status = t.get("status")
+                      key = {"expected": "passed", "unexpected": "failed", "flaky": "flaky", "skipped": "skipped"}.get(status, "failed")
+                      totals[key] += 1
+                      proj = t.get("projectName", "")
+                      projects.setdefault(proj, dict(passed=0, failed=0, flaky=0, skipped=0))[key] += 1
+                      results = t.get("results", [])
+                      dur = sum(r.get("duration", 0) for r in results) / 1000
+                      rows.append((spec.get("title", ""), proj, key, dur))
+                      if key == "failed":
+                          msg = ""
+                          for r in results:
+                              err = r.get("error") or {}
+                              if err.get("message"):
+                                  msg = err["message"].splitlines()[0][:300]
+                          failures.append((spec.get("title", ""), proj, msg))
+              for s in suite.get("suites", []):
+                  walk(s)
+
+          for s in data.get("suites", []):
+              walk(s)
+
+          total = sum(totals.values())
+          icon = "❌" if totals["failed"] else "✅"
+          secs = data.get("stats", {}).get("duration", 0) / 1000
+          print(f"{icon} **{total}** tests: **{totals['passed']}** passed, **{totals['failed']}** failed, **{totals['flaky']}** flaky, **{totals['skipped']}** skipped ({secs:.1f}s)\n")
+          print("| Project | Passed | Failed | Flaky | Skipped |")
+          print("|---|---|---|---|---|")
+          for name, c in sorted(projects.items()):
+              print(f"| {name} | {c['passed']} | {c['failed']} | {c['flaky']} | {c['skipped']} |")
+          print("\n### Test cases\n")
+          print("| Test | Project | Result | Duration |")
+          print("|---|---|---|---|")
+          mark = {"passed": "✅ passed", "failed": "❌ failed", "flaky": "⚠️ flaky", "skipped": "⏭️ skipped"}
+          for title, proj, key, dur in sorted(rows, key=lambda r: (r[0], r[1])):
+              safe = title.replace("|", "/")
+              print(f"| {safe} | {proj} | {mark[key]} | {dur:.1f}s |")
+          if failures:
+              print("\n### Failures\n")
+              for title, proj, msg in failures:
+                  print(f"- `{proj}` **{title}**: {msg}")
+          shots = len(glob.glob("test-results/**/*.png", recursive=True))
+          print(f"\n📸 {shots} screenshot(s) in artifact `e2e-screenshots-${{ github.sha }}`.")
+          PY
+
+      - name: Collect screenshots
+        if: always()
+        run: |
+          mkdir -p screenshots
+          find test-results -name '*.png' -print0 | while IFS= read -r -d '' f; do
+            d=$(basename "$(dirname "$f")")
+            cp "$f" "screenshots/${d}__$(basename "$f")"
+          done
+          ls screenshots | wc -l
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: e2e-screenshots-${{ github.sha }}
+          path: test-pw/screenshots/
+          if-no-files-found: ignore
+          retention-days: 14
+
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
