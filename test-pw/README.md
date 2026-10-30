@@ -15,6 +15,8 @@ npm test               # everything
 npm run test:ui        # chromium + firefox
 npm run test:api       # API only (no browser)
 npm run report         # open HTML report
+npm run seed:users     # register the test user (DEMO_USERNAME/DEMO_PASSWORD) via the API
+VM_HOST=<ip> npm run cleanup:users   # delete users created by seed:users (SSH + docker exec psql)
 npm run typecheck
 ```
 

@@ -11,6 +11,8 @@
     "test:high": "playwright test --grep \"@high\\\\b\"",
     "test:medium": "playwright test --grep @medium",
     "test:low": "playwright test --grep @low",
+    "seed:users": "bash scripts/seed-test-users.sh",
+    "cleanup:users": "bash scripts/cleanup-test-users.sh",
     "report": "playwright show-report",
     "typecheck": "tsc --noEmit",
     "codegen": "playwright codegen http://localhost"
